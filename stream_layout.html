@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tornado Tacklers - Stream Layout</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; }
+
+  .canvas {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .screen {
+    position: relative;
+    aspect-ratio: 16/9;
+    width: 100%;
+    max-height: 100vh;
+    max-width: calc(100vh * 16/9);
+    background: transparent;
+    overflow: hidden;
+  }
+
+  .bg-label {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', monospace; font-size: 2rem;
+    color: rgba(255,255,255,0.04); letter-spacing: 10px; text-transform: uppercase;
+  }
+
+  .zone-topbar {
+    position: absolute; top: 0; left: 0; right: 0; height: 8%;
+    background: linear-gradient(90deg, rgba(255,100,0,0.95) 0%, rgba(255,120,0,0.92) 50%, rgba(255,140,0,0.95) 100%);
+    border-bottom: 2px solid #c800ff;
+    display: flex; align-items: center; padding: 0 1.5%; gap: 1%;
+  }
+  .logo-box {
+    font-family: 'Orbitron', monospace; font-size: 1.4vw; font-weight: 900; font-style: italic;
+    color: #000000; line-height: 1.15; text-transform: uppercase; letter-spacing: 0.2em; flex-shrink: 0;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.25);
+  }
+  .location-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; margin-left: 2%; }
+  .location-label { font-family: 'Rajdhani', sans-serif; font-size: 0.8vw; color: #003320; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+  .location-val { font-family: 'Orbitron', monospace; font-size: 1.2vw; font-weight: 700; color: #003320; letter-spacing: 0.1em; text-transform: uppercase; }
+  .clock-wrap { margin-left: auto; display: flex; flex-direction: row; align-items: center; gap: 14px; }
+  .clock-time { font-family: 'Orbitron', monospace; font-size: 1.4vw; font-weight: 700; color: #003320; letter-spacing: 0.2em; }
+  .clock-date { font-family: 'Rajdhani', sans-serif; font-size: 1vw; color: #003320; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+  .clock-time-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+  .temp-wrap { display: flex; flex-direction: column; align-items: center; gap: 1px; border-left: 1px solid rgba(0,0,0,0.2); padding-left: 14px; }
+  .temp-val { font-family: 'Orbitron', monospace; font-size: 1.6vw; font-weight: 700; color: #003320; letter-spacing: 0.1em; }
+  .temp-lbl { font-family: 'Rajdhani', sans-serif; font-size: 0.8vw; color: #003320; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+
+  @keyframes tornado-pulse {
+    0%   { border-bottom-color: #ff0000; box-shadow: 0 4px 24px rgba(255,0,0,0.9); }
+    50%  { border-bottom-color: #ff6600; box-shadow: 0 2px 8px rgba(255,100,0,0.3); }
+    100% { border-bottom-color: #ff0000; box-shadow: 0 4px 24px rgba(255,0,0,0.9); }
+  }
+  .zone-topbar.warning {
+    border-bottom-width: 4px;
+    border-bottom-color: #ff0000;
+    animation: tornado-pulse 1s ease-in-out infinite;
+  }
+  .warning-badge {
+    display: none;
+    font-family: 'Orbitron', monospace; font-size: 1vw; font-weight: 900;
+    color: #003320; background: #ff0000;
+    padding: 2px 10px; border-radius: 2px;
+    letter-spacing: 0.15em; text-transform: uppercase; flex-shrink: 0;
+  }
+  .warning-badge.visible { display: block; }
+
+
+
+
+
+
+</style>
+</head>
+<body>
+<div class="canvas">
+ <div class="screen">
+
+
+
+  <div class="zone-topbar">
+    <div class="logo-box">STORM CHASER RON STAGE</div>
+    <div class="location-wrap" id="location-wrap">
+      <div class="location-val" id="location-text">Locating...</div>
+    </div>
+    <div class="warning-badge" id="warning-badge">🌪 TORNADO WARNING</div>
+    <div class="clock-wrap">
+      <div class="clock-time-wrap">
+        <div class="clock-time" id="clock">00:00:00</div>
+        <div class="clock-date" id="clock-day">TUE · LOCAL</div>
+      </div>
+      <div class="temp-wrap">
+        <div class="temp-val" id="temp">--°F</div>
+        <div class="temp-lbl">TEMP</div>
+      </div>
+    </div>
+  </div>
+
+
+
+
+
+
+
+ </div>
+</div>
+
+<script>
+  // Clock
+  const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  function tick() {
+    const now = new Date();
+    let h = now.getHours();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    const m = String(now.getMinutes()).padStart(2,'0');
+    const s = String(now.getSeconds()).padStart(2,'0');
+    document.getElementById('clock').textContent = h + ':' + m + ':' + s + ' ' + ampm;
+    document.getElementById('clock-day').textContent = days[now.getDay()] + ' · LOCAL';
+  }
+  tick();
+  setInterval(tick, 1000);
+
+
+  // Geolocation — works on HTTPS (GitHub Pages)
+  async function getLocation() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.watchPosition(async (pos) => {
+      const { latitude, longitude } = pos.coords;
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+          { headers: { 'Accept-Language': 'en' } }
+        );
+        const data = await res.json();
+        const addr = data.address;
+        const city   = addr.city || addr.town || addr.village || addr.hamlet || '';
+        const county = addr.county || '';
+        const state  = addr.state_code || addr.state || '';
+        let display = '';
+        if (city && county) display = `${city}, ${county} ${state}`;
+        else if (city)      display = `${city}, ${state}`;
+        else if (county)    display = `${county}, ${state}`;
+        document.getElementById('location-text').textContent = display.toUpperCase();
+
+        // Also update temp with live coords
+        fetchTempCoords(latitude, longitude);
+
+        // NWS tornado warning check
+        checkAlerts(latitude, longitude);
+      } catch(e) {
+        document.getElementById('location-text').textContent = 'LOCATION UNAVAILABLE';
+      }
+    }, () => {
+      document.getElementById('location-text').textContent = 'LOCATION DENIED';
+    }, { enableHighAccuracy: true });
+  }
+
+  async function fetchTempCoords(lat, lon) {
+    try {
+      const res = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&temperature_unit=fahrenheit`
+      );
+      const data = await res.json();
+      const temp = Math.round(data.current_weather.temperature);
+      document.getElementById('temp').textContent = temp + '°F';
+    } catch(e) {}
+  }
+
+  async function checkAlerts(lat, lon) {
+    try {
+      const pointRes = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`);
+      const pointData = await pointRes.json();
+      const zone = pointData.properties.forecastZone.split('/').pop();
+      const alertRes = await fetch(`https://api.weather.gov/alerts/active?zone=${zone}`);
+      const alertData = await alertRes.json();
+      const hasTornado = alertData.features?.some(f => f.properties.event === 'Tornado Warning');
+      const bar = document.querySelector('.zone-topbar');
+      const badge = document.getElementById('warning-badge');
+      if (hasTornado) {
+        bar.classList.add('warning');
+        badge.classList.add('visible');
+      } else {
+        bar.classList.remove('warning');
+        badge.classList.remove('visible');
+      }
+    } catch(e) {}
+  }
+
+  getLocation();
+  setInterval(() => {
+    const locText = document.getElementById('location-text').textContent;
+    if (locText && locText !== 'LOCATING...' && locText !== 'LOCATION DENIED') {
+      // NWS re-check every 60s handled via watchPosition updates
+    }
+  }, 60000);
+
+  // Auto-run on load
+
+</script>
+</body>
+</html>
